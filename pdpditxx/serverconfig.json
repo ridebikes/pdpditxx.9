@@ -1,8 +1,8 @@
 {
   "Author": "ridebikes",
-  "Date": "02/22/2024",
-  "Description": "iText8 Code for PDF Processing",
-  "Notes": "Server directory settings",
+  "Date": "03/13/2025",
+  "Description": "iText9 Code for PDF Processing",
+  "Notes": "Directory settings",
   "Directories": {
     "LogDir": "C:\\Projects\\iText9\\logs\\",
     "OutDir": "C:\\Projects\\iText9\\output\\",

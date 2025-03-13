@@ -1,0 +1,11 @@
+{
+  "Author": "ridebikes",
+  "Date": "02/22/2024",
+  "Description": "iText8 Code for PDF Processing",
+  "Notes": "Server directory settings",
+  "Directories": {
+    "LogDir": "C:\\Projects\\iText9\\logs\\",
+    "OutDir": "C:\\Projects\\iText9\\output\\",
+    "WorkDir": "C:\\Projects\\iText9\\workdir\\"
+  }
+}

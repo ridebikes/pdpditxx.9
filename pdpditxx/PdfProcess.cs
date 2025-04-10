@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using iText.Kernel.Pdf;
@@ -47,7 +47,14 @@ namespace pdpditxx
         #endregion
 
         #region Concatenate a directory of PDF's
-
+        /// <summary>
+        /// Takes an index of PDF files and concatenates them together in that order.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="mergeIndex"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="zipWorkDir"></param>
+        /// <exception cref="InvalidDataException"></exception>
         public static void Concat(AppSettings.Root appSettings, List<string> mergeIndex, FileInfo inputFile, string zipWorkDir)
         {
             // disable AGPL license messaging
@@ -116,7 +123,13 @@ namespace pdpditxx
         #endregion
 
         #region Copy a single PDF
-
+        /// <summary>
+        /// Makes copies of a single pdf into a new PDF. Handy to make larger input for testing.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="zipWorkDir"></param>
+        /// <exception cref="InvalidDataException"></exception>
         public static void MakeCopies(AppSettings.Root appSettings, FileInfo inputFile, string zipWorkDir)
         {
             // disable AGPL license messaging
@@ -339,7 +352,14 @@ namespace pdpditxx
         #endregion
 
         #region Scale and Rotate a PDF
-
+        /// <summary>
+        /// This takes in a PDF and page size you want and scales it, and also rotates pages if needed.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="outputFile"></param>
+        /// <param name="pageWidth"></param>
+        /// <param name="pageHeight"></param>
         public static void ScaleAndRotate(AppSettings.Root appSettings, FileInfo inputFile, FileInfo outputFile, float pageWidth, float pageHeight)
         {
             DateTime actionStartTime = DateTime.Now;
@@ -347,8 +367,8 @@ namespace pdpditxx
             // disable AGPL license messaging
             EventManager.AcknowledgeAgplUsageDisableWarningMessage();
 
-            // using iText 7.1.12 with Affine Transform
-            // https://api.itextpdf.com/iText7/dotnet/7.1.12/classi_text_1_1_kernel_1_1_geom_1_1_affine_transform.html
+            // using iText 9.1.0 with Affine Transform
+            // https://api.itextpdf.com/iText/java/9.1.0/com/itextpdf/kernel/geom/AffineTransform.html
 
             PageSize targetSize = new PageSize(new Rectangle(pageWidth, pageHeight));
 
@@ -421,8 +441,249 @@ namespace pdpditxx
 
         #endregion
 
-        #region Convert PDF's to Text
+        #region Scale Shift Rotate - acts on a trigger of all, even, odd or xydiff
+        /// <summary>
+        /// This takes in a pdf and goes through the pages on a trigger - all, odd, even or xydiff. It will scale and shift the pages as asked.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="outputFile"></param>
+        /// <param name="pageX"></param>
+        /// <param name="pageY"></param>
+        /// <param name="scaleX"></param>
+        /// <param name="scaleY"></param>
+        /// <param name="shiftX"></param>
+        /// <param name="shiftY"></param>
+        /// <param name="degreesRotation"></param>
+        /// <param name="trigger"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static void ScaleShiftRotate(AppSettings.Root appSettings, FileInfo inputFile, string outputFile, int pageX, int pageY, double scaleX, double scaleY, double shiftX, double shiftY, int degreesRotation, string trigger)
+        {
+            DateTime actionStartTime = DateTime.Now;
 
+            // disable AGPL license messaging
+            EventManager.AcknowledgeAgplUsageDisableWarningMessage();
+
+            // using iText 9.1.0 with Affine Transform
+            // https://api.itextpdf.com/iText/java/9.1.0/com/itextpdf/kernel/geom/AffineTransform.html
+
+            using (PdfReader inputReader = new PdfReader(inputFile.FullName))
+            {
+                using (PdfDocument inputDocument = new PdfDocument(inputReader))
+                {
+                    using (PdfWriter outputWriter = new PdfWriter(outputFile))
+                    {
+                        using (PdfDocument outputDocument = new PdfDocument(outputWriter))
+                        {
+                            int totalPages = inputDocument.GetNumberOfPages();
+
+                            for (int i = 1; i <= totalPages; i++)
+                            {
+                                bool processPage = false;
+
+                                // page changes would be based on the value of i + 1 since that is the page counter (first page is 0)
+                                if (trigger.ToLower() == "odd")
+                                {
+                                    //only set processPage true for even pages 
+                                    if (i % 2 != 0)
+                                    {
+                                        processPage = true;
+                                    }
+                                }
+                                else if (trigger.ToLower() == "even")
+                                {
+                                    //only set processPage true for odd pages
+                                    if (i % 2 == 0)
+                                    {
+                                        processPage = true;
+                                    }
+                                }
+                                else if (trigger.ToLower() == "all")
+                                {
+                                    processPage = true;
+                                }
+                                else if (trigger.ToLower() == "xydiff")
+                                {
+                                    //need the page dimentions to check
+                                    PdfPage inputPage = inputDocument.GetPage(i);
+                                    if (inputPage.GetMediaBox().GetWidth() != pageX || inputPage.GetMediaBox().GetHeight() != pageY)
+                                    {
+                                        processPage = true;
+                                    }
+
+                                }
+
+                                if (processPage)
+                                {
+                                    // Get page
+                                    PdfPage inputPage = inputDocument.GetPage(i);
+                                    // Set new page output size
+                                    PageSize outputSize = new PageSize(new Rectangle(pageX, pageY));
+                                    // create new page of that size
+                                    PdfPage outputPage = outputDocument.AddNewPage(outputSize);
+                                    // setup page transform Matrix
+                                    AffineTransform transformationMatrix = new AffineTransform(scaleX, 0, 0, scaleY, shiftX, shiftY);
+                                    //create canvas
+                                    PdfCanvas destCanvas = new PdfCanvas(outputPage);
+                                    // concat matrix to page
+                                    destCanvas.ConcatMatrix(transformationMatrix);
+                                    //grab page data as FormXObject
+                                    PdfFormXObject origCopy = inputPage.CopyAsFormXObject(outputDocument);
+                                    //add to our canvas
+                                    destCanvas.AddXObject(origCopy);
+                                    // finalize canvas for next iteration
+                                    destCanvas = new PdfCanvas(outputPage);
+
+                                    // Set page rotation
+                                    switch (degreesRotation)
+                                    {
+                                        case 0:
+                                            outputPage.SetRotation(0);
+                                            break;
+                                        case 90:
+                                            outputPage.SetRotation(90);
+                                            break;
+                                        case 180:
+                                            outputPage.SetRotation(180);
+                                            break;
+                                        case 270:
+                                            outputPage.SetRotation(270);
+                                            break;
+                                        default:
+                                            throw new InvalidOperationException("Cannot rotate to anything other than 0, 90, 180, or 270");
+                                    }
+                                }
+                                else 
+                                {
+                                    PdfMerger mergedPDF = new PdfMerger(outputDocument);
+                                    mergedPDF.Merge(inputDocument, i, i);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Console.WriteLine($"iText Scale and Rotate completed in {DateTime.Now.Subtract(actionStartTime):c} for file {inputFile.Name}");
+        }
+
+        #endregion
+
+        #region Scale Shift Rotate - acts on an external index
+        /// <summary>
+        /// This takes in a pdf and goes through the pages on a trigger - all, odd, even or xydiff. It will scale and shift the pages as asked.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="outputFile"></param>
+        /// <param name="pageX"></param>
+        /// <param name="pageY"></param>
+        /// <param name="scaleX"></param>
+        /// <param name="scaleY"></param>
+        /// <param name="shiftX"></param>
+        /// <param name="shiftY"></param>
+        /// <param name="degreesRotation"></param>
+        /// <param name="trigger"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static void ScaleShiftRotate(AppSettings.Root appSettings, string zipWorkDir, List<SRIndex> thisIndex, FileInfo inputFile)
+        {
+            DateTime actionStartTime = DateTime.Now;
+
+            if (Directory.GetFiles(zipWorkDir, "*.pdf").Length > 1)
+            {
+                Console.WriteLine($"Zip contains more than one PDF to rotate.");
+                throw new InvalidOperationException($"Zip contains more than one PDF to rotate.");
+            }
+
+            string outputFile = $"{zipWorkDir}zipOutput{System.IO.Path.DirectorySeparatorChar}{inputFile.Name}";
+
+            // disable AGPL license messaging
+            EventManager.AcknowledgeAgplUsageDisableWarningMessage();
+
+            // using iText 9.1.0 with Affine Transform
+            // https://api.itextpdf.com/iText/java/9.1.0/com/itextpdf/kernel/geom/AffineTransform.html
+
+            using (PdfReader inputReader = new PdfReader(inputFile.FullName))
+            {
+                using (PdfDocument inputDocument = new PdfDocument(inputReader))
+                {
+                    using (PdfWriter outputWriter = new PdfWriter(outputFile))
+                    {
+                        using (PdfDocument outputDocument = new PdfDocument(outputWriter))
+                        {
+                            bool tookAction = false;
+                            int totalPages = inputDocument.GetNumberOfPages();
+                            
+                            // NOTE : The first page in iText is 1, it does not count from 0
+                            for (int i = 1; i <= totalPages; i++)
+                            {
+                                tookAction = false;
+
+                                foreach (SRIndex index in thisIndex)
+                                {
+                                    if (i != index.Page && !tookAction)
+                                    {
+                                        PdfMerger mergedPDF = new PdfMerger(outputDocument);
+                                        mergedPDF.Merge(inputDocument, i, i);
+                                        tookAction = true;
+                                    }
+                                    else if (i == index.Page && !tookAction)
+                                    {
+                                        // Get page
+                                        PdfPage inputPage = inputDocument.GetPage(i);
+                                        // Set new page output size
+                                        PageSize outputSize = new PageSize(new Rectangle(index.PageSizeX, index.PageSizeY));
+                                        // create new page of that size
+                                        PdfPage outputPage = outputDocument.AddNewPage(outputSize);
+                                        // setup page transform Matrix
+                                        AffineTransform transformationMatrix = new AffineTransform(index.ScaleX, 0, 0, index.ScaleY, index.ShiftX, index.ShiftY);
+                                        //create canvas
+                                        PdfCanvas destCanvas = new PdfCanvas(outputPage);
+                                        // concat matrix to page
+                                        destCanvas.ConcatMatrix(transformationMatrix);
+                                        //grab page data as FormXObject
+                                        PdfFormXObject origCopy = inputPage.CopyAsFormXObject(outputDocument);
+                                        //add to our canvas
+                                        destCanvas.AddXObject(origCopy);
+                                        // finalize canvas for next iteration
+                                        destCanvas = new PdfCanvas(outputPage);
+
+                                        // Set page rotation
+                                        switch (index.DegreesRotation)
+                                        {
+                                            case 0:
+                                                outputPage.SetRotation(0);
+                                                break;
+                                            case 90:
+                                                outputPage.SetRotation(90);
+                                                break;
+                                            case 180:
+                                                outputPage.SetRotation(180);
+                                                break;
+                                            case 270:
+                                                outputPage.SetRotation(270);
+                                                break;
+                                            default:
+                                                throw new InvalidOperationException("Cannot rotate to anything other than 0, 90, 180, or 270");
+                                        }
+                                        tookAction = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Console.WriteLine($"iText Scale and Rotate completed in {DateTime.Now.Subtract(actionStartTime):c} for file {inputFile.Name}");
+        }
+
+        #endregion
+
+        #region Convert PDF's to Text
+        /// <summary>
+        /// Takes in a PDF and converts it to a text file.
+        /// </summary>
+        /// <param name="inputFile"></param>
+        /// <param name="zipWorkDir"></param>
         public static void TextConvert(FileInfo inputFile, string zipWorkDir)
         {
             // disable AGPL license messaging

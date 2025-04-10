@@ -248,6 +248,85 @@ namespace pdpditxx
 
             #endregion
 
+            #region ScaleShiftRotateIndex : scale, shift or rotate a pdf with an indexed list
+
+            if (appSettings.ProcessingActions.ScaleShiftRotateIndex)
+            {
+                List<SRIndex> customSRIndex = new List<SRIndex>();
+
+                try
+                {
+                    customSRIndex = ZipProcess.SortToScaleAndRotate(inputFile, zipWorkDir, zipOutDir);
+                }
+                catch (Exception e)
+                {
+                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToScaleAndRotate");
+                }
+                if (messageList.Count == 0)
+                {
+                    FileInfo thisPdf = new FileInfo(Directory.GetFiles(zipWorkDir, "*.pdf").FirstOrDefault());
+                    
+                    try
+                    {
+                        PdfProcess.ScaleShiftRotate(appSettings, zipWorkDir, customSRIndex, thisPdf);
+                    }
+                    catch (Exception e)
+                    {
+                        ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "PdfProcess", "ScaleShiftRotateIndex");
+                        //do not return bad output
+                        File.Delete($"{zipOutDir}{Path.GetFileNameWithoutExtension(inputFile.FullName)}.pdf");
+                    }
+                }
+            }
+
+            #endregion
+
+            #region Scale Shift and Rotate a zip file of PDF's with custom values and trigger of all, even, odd or xydiff
+
+            if (appSettings.ProcessingActions.ScaleShiftRotate)
+            {
+                List<string> pdfFilesInZip = new List<string>();
+
+                try
+                {
+                    pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
+                }
+                catch (Exception e)
+                {
+                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
+                }
+                if (messageList.Count == 0)
+                {
+                    int pageX = appSettings.Settings.ScaleShiftRotate.PageWidth;
+                    int pageY = appSettings.Settings.ScaleShiftRotate.PageHeight;
+                    double shiftX = appSettings.Settings.ScaleShiftRotate.ShiftX;
+                    double shiftY = appSettings.Settings.ScaleShiftRotate.ShiftY;
+                    double scaleX = appSettings.Settings.ScaleShiftRotate.ScaleX;
+                    double scaleY = appSettings.Settings.ScaleShiftRotate.ScaleY;
+                    int rotation = appSettings.Settings.ScaleShiftRotate.DegreesRotation;
+                    string trigger = appSettings.Settings.ScaleShiftRotate.Trigger;
+
+                    foreach (string pdfFile in pdfFilesInZip)
+                    {
+                        try
+                        {
+                            PdfProcess.ScaleShiftRotate(appSettings, new FileInfo(pdfFile), $"{zipOutDir}{Path.GetFileName(pdfFile)}", pageX, pageY, scaleX, scaleY, shiftX, shiftY, rotation, trigger);
+                        }
+                        catch (Exception e)
+                        {
+                            ErrorHandler.ScaleAndRotateErrorHandler(messageList, pdfFile, "pdpditxx.ScaleAndRotate", $"0x{e.HResult:x}", e.Message, e.StackTrace);
+                            //do not return bad output
+                            File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
+                        }
+                        // delete the input PDF files as we have completed each one
+                        File.Delete(pdfFile);
+                    }
+
+                }
+            }
+
+            #endregion
+
             #region SmartSave to optimize PDF's
 
             if (appSettings.ProcessingActions.SmartSave)

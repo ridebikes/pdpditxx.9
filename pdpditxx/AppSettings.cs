@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -22,6 +22,8 @@ namespace pdpditxx
             public bool Concatenate { get; set; } = false;
             public bool MakeCopies { get; set; } = false;
             public bool ScaleAndRotate { get; set; } = false;
+            public bool ScaleShiftRotate { get; set; } = false;
+            public bool ScaleShiftRotateIndex { get; set; } = false;
             public bool SmartSave { get; set; } = false;
             public bool TextConvert { get; set; } = false;
         }
@@ -31,6 +33,7 @@ namespace pdpditxx
             public MakeCopies MakeCopies { get; set; } = new MakeCopies();
             public SmartSaving SmartSaving { get; set; } = new SmartSaving();
             public TargetPageSize TargetPageSize { get; set; } = new TargetPageSize();
+            public ScaleShiftRotate ScaleShiftRotate { get; set; } = new ScaleShiftRotate();
         }
 
         public class Concatenation
@@ -44,6 +47,18 @@ namespace pdpditxx
             public int NumberOfCopies { get; set; }
         }
 
+        public class ScaleShiftRotate
+        {
+            public int PageHeight { get; set; }
+            public int PageWidth { get; set; }
+            public int DegreesRotation { set; get; }
+            public double ScaleX { get; set; }
+            public double ScaleY { get; set; }
+            public double ShiftX { set; get; }
+            public double ShiftY { set; get; }
+            public string Trigger { get; set; }
+        }
+
         public class SmartSaving
         {
             public bool StripComments { get; set; } = false;
@@ -55,6 +70,8 @@ namespace pdpditxx
         {
             public float PageHeight { get; set; }
             public float PageWidth { get; set; }
+            public float shiftX { get; set; } = 0;
+            public float shiftY { get; set; } = 0;
         }
 
         public static void SetAllProcessingActionsFalse(Root appSettings)

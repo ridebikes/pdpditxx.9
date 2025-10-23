@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
@@ -89,6 +89,39 @@ namespace pdpditxx
                 {
                     AppSettings.SetAllProcessingActionsFalse(appSettings);
                     ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "AppSettings", "ValidateConfig");
+                }
+            }
+
+            #endregion
+
+            #region Add annotations to a pdf with an external index file
+
+            // split a zip with an index file and pdf
+            if (appSettings.ProcessingActions.AddAnnots)
+            {
+                List<AnnotIndex> annotIndex = new List<AnnotIndex>();
+
+                try
+                {
+                    annotIndex = ZipProcess.SortToAnnot(inputFile, zipWorkDir);
+                }
+                catch (Exception e)
+                {
+                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToAnnot");
+                }
+
+                if (messageList.Count == 0)
+                {
+                    FileInfo thisSplitPdf = new FileInfo(Directory.GetFiles(zipWorkDir, "*.pdf").FirstOrDefault());
+
+                    try
+                    {
+                        PdfProcess.AddAnnotations(appSettings, zipWorkDir, annotIndex, thisSplitPdf);
+                    }
+                    catch (Exception e)
+                    {
+                        ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "PdfProcess", "AddAnnots");
+                    }
                 }
             }
 
@@ -209,42 +242,44 @@ namespace pdpditxx
 
             #endregion
 
-            #region Scale and Auto-Rotate a PDF
+            #region Scale and Auto-Rotate a PDF - wrong
 
-            if (appSettings.ProcessingActions.ScaleAndRotate)
-            {
-                List<string> pdfFilesInZip = new List<string>();
+            // I learned more about this and now I want to pull this one. I dont think this is correct (even if it appears to work)
 
-                try
-                {
-                    pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
-                }
-                catch (Exception e)
-                {
-                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
-                }
-                if (messageList.Count == 0)
-                {
-                    float pageWidth = appSettings.Settings.TargetPageSize.PageWidth;
-                    float pageHeight = appSettings.Settings.TargetPageSize.PageHeight;
-                    foreach (string pdfFile in pdfFilesInZip)
-                    {
-                        try
-                        {
-                            PdfProcess.ScaleAndRotate(appSettings, new FileInfo(pdfFile), new FileInfo($"{zipOutDir}{Path.GetFileName(pdfFile)}"), pageWidth, pageHeight);
-                        }
-                        catch (Exception e)
-                        {
-                            ErrorHandler.ScaleAndRotateErrorHandler(messageList, pdfFile, "pdpditxx.ScaleAndRotate", $"0x{e.HResult:x}", e.Message, e.StackTrace);
-                            //do not return bad output
-                            File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
-                        }
-                        // delete the input PDF files as we have completed each one
-                        File.Delete(pdfFile);
-                    }
+            //if (appSettings.ProcessingActions.ScaleAndRotate)
+            //{
+            //    List<string> pdfFilesInZip = new List<string>();
 
-                }
-            }
+            //    try
+            //    {
+            //        pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
+            //    }
+            //    catch (Exception e)
+            //    {
+            //        ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
+            //    }
+            //    if (messageList.Count == 0)
+            //    {
+            //        float pageWidth = appSettings.Settings.TargetPageSize.PageWidth;
+            //        float pageHeight = appSettings.Settings.TargetPageSize.PageHeight;
+            //        foreach (string pdfFile in pdfFilesInZip)
+            //        {
+            //            try
+            //            {
+            //                PdfProcess.ScaleAndRotate(appSettings, new FileInfo(pdfFile), new FileInfo($"{zipOutDir}{Path.GetFileName(pdfFile)}"), pageWidth, pageHeight);
+            //            }
+            //            catch (Exception e)
+            //            {
+            //                ErrorHandler.ScaleAndRotateErrorHandler(messageList, pdfFile, "pdpditxx.ScaleAndRotate", $"0x{e.HResult:x}", e.Message, e.StackTrace);
+            //                //do not return bad output
+            //                File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
+            //            }
+            //            // delete the input PDF files as we have completed each one
+            //            File.Delete(pdfFile);
+            //        }
+
+            //    }
+            //}
 
             #endregion
 

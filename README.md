@@ -10,7 +10,7 @@ Thanks !
 
 Here is a link to the iText nuget
 
-https://www.nuget.org/packages/itext7
+https://www.nuget.org/packages/itext
 
 And the iText site :
 

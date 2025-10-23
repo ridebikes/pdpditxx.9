@@ -1,13 +1,16 @@
 {
   "Author": "ridebikes",
-  "Date": "03/13/2025",
+  "Date": "10/23/2025",
   "Description": "iText9 Code for PDF Processing",
   "EnableDebug": false,
   "Notes": "Default setup file. Set a single ProcessingAction to true.",
   "ProcessingActions": {
+    "AddAnnots": true,
     "Concatenate": false,
     "MakeCopies": false,
     "ScaleAndRotate": false,
+    "ScaleShiftRotate": false,
+    "ScaleShiftRotateIndex": false,
     "SmartSave": false,
     "Split": false,
     "TextConvert": false
@@ -20,6 +23,16 @@
     "MakeCopies": {
       "NumberOfCopies": 20
     },
+    "ScaleShiftRotate": {
+      "PageWidth": 612,
+      "PageHeight": 792,
+      "DegreesRotation": 0,
+      "ScaleX": 1,
+      "ScaleY": 1,
+      "ShiftX": 0,
+      "ShiftY": 0,
+      "Trigger": "xydiff"
+    },
     "SmartSaving": {
       "StripComments": false,
       "FlattenAcroforms": false,
@@ -30,4 +43,5 @@
       "PageWidth": 612
     }
   }
+
 }

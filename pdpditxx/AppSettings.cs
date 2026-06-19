@@ -18,13 +18,15 @@ namespace pdpditxx
         }
         public class Processingactions
         {
-            public bool Split { get; set; } = false;
+            public bool AddAnnots { get; set; } = false;
             public bool Concatenate { get; set; } = false;
+            public bool ExportAnnots { get; set; } = false;
             public bool MakeCopies { get; set; } = false;
-            public bool ScaleAndRotate { get; set; } = false;
+            public bool ReversePageOrder { get; set; } = false;
             public bool ScaleShiftRotate { get; set; } = false;
             public bool ScaleShiftRotateIndex { get; set; } = false;
             public bool SmartSave { get; set; } = false;
+            public bool Split { get; set; } = false;
             public bool TextConvert { get; set; } = false;
         }
         public class Settings
@@ -32,7 +34,6 @@ namespace pdpditxx
             public Concatenation Concatenation { get; set; } = new Concatenation();
             public MakeCopies MakeCopies { get; set; } = new MakeCopies();
             public SmartSaving SmartSaving { get; set; } = new SmartSaving();
-            public TargetPageSize TargetPageSize { get; set; } = new TargetPageSize();
             public ScaleShiftRotate ScaleShiftRotate { get; set; } = new ScaleShiftRotate();
         }
 
@@ -64,14 +65,6 @@ namespace pdpditxx
             public bool StripComments { get; set; } = false;
             public bool FlattenAcroforms { get; set; } = false;
             public bool RemovePassword { get; set; } = false;
-        }
-
-        public class TargetPageSize
-        {
-            public float PageHeight { get; set; }
-            public float PageWidth { get; set; }
-            public float shiftX { get; set; } = 0;
-            public float shiftY { get; set; } = 0;
         }
 
         public static void SetAllProcessingActionsFalse(Root appSettings)

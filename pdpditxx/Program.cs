@@ -202,6 +202,43 @@ namespace pdpditxx
 
             #endregion
 
+            #region Reverse the pages in a pdf
+
+            if (appSettings.ProcessingActions.ReversePageOrder)
+            {
+                List<string> pdfFilesInZip = new List<string>();
+
+                try
+                {
+                    pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
+                }
+                catch (Exception e)
+                {
+                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
+                }
+
+                if (messageList.Count == 0)
+                {
+                    foreach (string pdfFile in pdfFilesInZip)
+                    {
+                        try
+                        {
+                            PdfProcess.ReversePageOrder(appSettings, new FileInfo(pdfFile), $"{zipOutDir}{Path.GetFileName(pdfFile)}");
+                        }
+                        catch (Exception e)
+                        {
+                            ErrorHandler.SmartSaveErrorHandler(messageList, pdfFile, "pdpditxx.Reverse", $"0x{e.HResult:x}", e.Message, e.StackTrace);
+                            //do not return bad output
+                            File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
+                        }
+                        // delete the input PDF files as we have completed each one
+                        File.Delete(pdfFile);
+                    }
+                }
+            }
+
+            #endregion
+                
             #region Split a pdf with an external index file
 
             // split a zip with an index file and pdf
@@ -239,47 +276,6 @@ namespace pdpditxx
                     }
                 }
             }
-
-            #endregion
-
-            #region Scale and Auto-Rotate a PDF - wrong
-
-            // I learned more about this and now I want to pull this one. I dont think this is correct (even if it appears to work)
-
-            //if (appSettings.ProcessingActions.ScaleAndRotate)
-            //{
-            //    List<string> pdfFilesInZip = new List<string>();
-
-            //    try
-            //    {
-            //        pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
-            //    }
-            //    catch (Exception e)
-            //    {
-            //        ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
-            //    }
-            //    if (messageList.Count == 0)
-            //    {
-            //        float pageWidth = appSettings.Settings.TargetPageSize.PageWidth;
-            //        float pageHeight = appSettings.Settings.TargetPageSize.PageHeight;
-            //        foreach (string pdfFile in pdfFilesInZip)
-            //        {
-            //            try
-            //            {
-            //                PdfProcess.ScaleAndRotate(appSettings, new FileInfo(pdfFile), new FileInfo($"{zipOutDir}{Path.GetFileName(pdfFile)}"), pageWidth, pageHeight);
-            //            }
-            //            catch (Exception e)
-            //            {
-            //                ErrorHandler.ScaleAndRotateErrorHandler(messageList, pdfFile, "pdpditxx.ScaleAndRotate", $"0x{e.HResult:x}", e.Message, e.StackTrace);
-            //                //do not return bad output
-            //                File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
-            //            }
-            //            // delete the input PDF files as we have completed each one
-            //            File.Delete(pdfFile);
-            //        }
-
-            //    }
-            //}
 
             #endregion
 
@@ -439,6 +435,45 @@ namespace pdpditxx
 
             #endregion
 
+            #region Get Annotations from a PDF to a Text File
+
+            if (appSettings.ProcessingActions.ExportAnnots)
+            {
+                List<string> pdfFilesInZip = new List<string>();
+
+                try
+                {
+                    pdfFilesInZip = ZipProcess.SortToProcess(zipWorkDir, zipOutDir);
+                }
+                catch (Exception e)
+                {
+                    ErrorHandler.OtherFailureErrorHandler(messageList, e, inputFile, "ZipProcess", "SortToProcess");
+                }
+
+                if (messageList.Count == 0)
+                {
+                    foreach (string pdfFile in pdfFilesInZip)
+                    {
+                        string currentPdf;
+                        try
+                        {
+                            currentPdf = pdfFile;
+                            PdfProcess.ExportAnnots(appSettings, zipWorkDir, new FileInfo(pdfFile));
+                        }
+                        catch (Exception e)
+                        {
+                            ErrorHandler.TextConvertErrorHandler(messageList, pdfFile, "pdpditxx.GetAnnotations", $"0x{e.HResult:x}", e.Message, e.StackTrace);
+                            //do not return bad output
+                            File.Delete($"{zipOutDir}{Path.GetFileName(pdfFile)}");
+                        }
+                        // delete the input PDF files as we have completed each one
+                        File.Delete(pdfFile);
+                    }
+                }
+            }
+
+            #endregion
+                
             #region Write out any errors, zip output, cleanup
 
             // write error list to file if there are any

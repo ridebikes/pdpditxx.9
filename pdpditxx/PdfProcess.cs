@@ -10,6 +10,7 @@ using iText.Kernel.Pdf.Xobject;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Forms;
 using iText.Commons.Actions;
+using System.Text.Json;
 
 
 namespace pdpditxx
@@ -29,7 +30,6 @@ namespace pdpditxx
             EventManager.AcknowledgeAgplUsageDisableWarningMessage();
 
             //add annot to every first page
-
             using (PdfWriter outputWriter = new PdfWriter(outputFile))
             {
                 using (PdfReader inputReader = new PdfReader(inputFile))
@@ -92,6 +92,116 @@ namespace pdpditxx
                 }
             }
             //Console.WriteLine($"iText Scale and Rotate completed in {DateTime.Now.Subtract(actionStartTime):c} for file {inputFile.Name}");
+        }
+
+        #endregion
+
+        #region Get Annotations from a pdf
+        public static void ExportAnnots(AppSettings.Root appSettings, string zipWorkDir, FileInfo inputFile)
+        {
+            string outputFile = $"{zipWorkDir}zipOutput{System.IO.Path.DirectorySeparatorChar}{System.IO.Path.GetFileNameWithoutExtension(inputFile.Name)}.txt";
+
+            // disable AGPL license messaging
+            EventManager.AcknowledgeAgplUsageDisableWarningMessage();
+
+            using (StreamWriter thisWriter = new StreamWriter(outputFile, true, System.Text.Encoding.Unicode))
+            {
+                using (PdfDocument thisDocument = new PdfDocument(new PdfReader(inputFile.FullName)))
+                {
+                    for (int i = 1; i < thisDocument.GetNumberOfPages(); i++)
+                    {
+                        PdfPage page = thisDocument.GetPage(i);
+                        IList<PdfAnnotation> annotations = page.GetAnnotations();
+
+                        foreach (PdfAnnotation annotation in annotations)
+                        {
+                            //Console.WriteLine($"Page {i} : {annotation.GetType()}");
+                            if (annotation.GetType().ToString() == "iText.Kernel.Pdf.Annot.PdfTextAnnotation")
+                            {
+                                string string1 = @$"{annotation.GetContents().ToUnicodeString()}";
+                                string string2 = string1.Replace("\r", "\r\n");
+                                Console.WriteLine($"Page {i} :  {string2}");
+                            }
+                        }
+
+                    }
+
+                    List<Annot> annotList = new List<Annot>();
+                    Annot thisAnnot = new Annot();
+                    int numPages = thisDocument.GetNumberOfPages();
+                    string annotLine = string.Empty;
+
+                    for (int i = 1; i <= numPages; i++)
+                    {
+                        PdfPage page = thisDocument.GetPage(i);
+                        thisAnnot.PageNumber = i;
+
+                        // get all the annots on this page
+                        IList<PdfAnnotation> pageAnnotations = page.GetAnnotations();
+
+                        // get each annotation on this page
+                        for (int j = 0; j < pageAnnotations.Count; j++)
+                        {
+                            if (pageAnnotations[j].GetType().ToString() == "iText.Kernel.Pdf.Annot.PdfTextAnnotation")
+                            {
+                                string string1 = @$"{pageAnnotations[j].GetContents().ToUnicodeString()}";
+                                string string2 = string1.Replace("\r", "\r\n");
+                                //string2 = $"Page {i} : {string2}";
+                                StringReader thisReader = new StringReader(string2);
+
+                                // set annot number
+                                thisAnnot.AnnotContents.AnnotNumber = j;
+
+                                // write each annot line into the list<string> of annots
+                                while (true)
+                                {
+                                    annotLine = thisReader.ReadLine();
+                                    if (annotLine != null)
+                                    {
+                                        thisAnnot.AnnotContents.Annotations.Add(annotLine);
+                                    }
+                                    else 
+                                    { 
+                                        break;
+                                    }
+                                }
+                                thisReader.Close();
+                            }
+                        }
+
+                        // we only want to finalize annots that have content
+                        if (thisAnnot.AnnotContents.Annotations.Count != 0)
+                        {
+                            annotList.Add(thisAnnot);
+                            thisAnnot = new Annot();
+                        }
+                        else
+                        {
+                            thisAnnot = new Annot();
+                        }
+                    }
+
+                    JsonSerializerOptions jsonOptions = new JsonSerializerOptions();
+                    jsonOptions.WriteIndented = true;
+                    string annotJson = JsonSerializer.Serialize(annotList, jsonOptions);
+                    thisWriter.Write(annotJson);
+                }
+            }
+        }
+        #endregion
+
+        #region Annotation Class
+
+        public class Annot
+        {
+            public int PageNumber { get; set; } = 0;
+            public AnnotContents AnnotContents { get; set; } = new AnnotContents();
+        }
+
+        public class AnnotContents
+        {
+            public int AnnotNumber { get; set; } = 0;
+            public List<string> Annotations { get; set; } = [];
         }
 
         #endregion
@@ -184,7 +294,7 @@ namespace pdpditxx
             EventManager.AcknowledgeAgplUsageDisableWarningMessage();
 
             //code to copy PDF's
-            
+
             string outputFile = $"{zipWorkDir}zipOutput{System.IO.Path.DirectorySeparatorChar}{System.IO.Path.GetFileNameWithoutExtension(inputFile.FullName)}.pdf";
 
             using (PdfWriter thisWriter = new PdfWriter(outputFile, new WriterProperties().UseSmartMode()))
@@ -237,12 +347,63 @@ namespace pdpditxx
 
         #endregion
 
+        #region Reverse the page order of a pdf
+        /// <summary>
+        /// This takes in a pdf and goes through the pages on a trigger - all, odd, even or xydiff. It will scale and shift the pages as asked.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        /// <param name="inputFile"></param>
+        /// <param name="outputFile"></param>
+        /// 
+        public static void ReversePageOrder(AppSettings.Root appSettings, FileInfo inputFile, string outputFile)
+        {
+            //DateTime actionStartTime = DateTime.Now;
+
+            // disable AGPL license messaging
+            EventManager.AcknowledgeAgplUsageDisableWarningMessage();
+
+            using (PdfReader inputReader = new PdfReader(inputFile.FullName))
+            {
+                using (PdfDocument inputDocument = new PdfDocument(inputReader))
+                {
+                    using (PdfWriter outputWriter = new PdfWriter(outputFile))
+                    {
+                        using (PdfDocument outputDocument = new PdfDocument(outputWriter))
+                        {
+                            int totalPages = inputDocument.GetNumberOfPages();
+
+                            for (int i = totalPages; i >= 1; i--)
+                            {
+                                PdfPage inputPage = inputDocument.GetPage(i);
+                                // Set new page output size
+                                PageSize outputSize = new PageSize(new Rectangle(inputPage.GetMediaBox().GetWidth(), inputPage.GetMediaBox().GetHeight()));
+                                // create new page of that size
+                                PdfPage outputPage = outputDocument.AddNewPage(outputSize);
+                                PdfCanvas destCanvas = new PdfCanvas(outputPage);
+                                // grab page data as FormXObject
+                                PdfFormXObject origCopy = inputPage.CopyAsFormXObject(outputDocument);
+                                // add to our canvas
+                                destCanvas.AddXObject(origCopy);
+                                // finalize canvas for next iteration
+                                destCanvas = new PdfCanvas(outputPage);
+                            }
+                        }
+                    }
+                }
+            }
+            //Console.WriteLine($"iText Scale and Rotate completed in {DateTime.Now.Subtract(actionStartTime):c} for file {inputFile.Name}");
+        }
+
+        #endregion
+
         #region SmartSave a directory of PDF's
 
         public static void SmartSave(AppSettings.Root appSettings, FileInfo inputFile, string zipWorkDir)
         {
             // disable AGPL license messaging
             EventManager.AcknowledgeAgplUsageDisableWarningMessage();
+
+            //System.DateTime processStartTime = System.DateTime.Now;
 
             string outputFile = $"{zipWorkDir}zipOutput{System.IO.Path.DirectorySeparatorChar}{System.IO.Path.GetFileNameWithoutExtension(inputFile.FullName)}.pdf";
             string currentPdf = inputFile.FullName;
@@ -328,6 +489,8 @@ namespace pdpditxx
                     }
                 }
             }
+            //Console.WriteLine($"iText PDF SmartSave completed in {System.DateTime.Now.Subtract(processStartTime):c} for file " +
+            //        $"{inputFile.Name}. Compression : {((1 - ((float)(new FileInfo(outputFile).Length / (float)inputFile.Length))) * 100).ToString("0.00")}%");
         }
 
         #endregion
@@ -442,7 +605,7 @@ namespace pdpditxx
                             for (int i = 1; i <= totalPages; i++)
                             {
                                 PdfPage inputPage = inputDocument.GetPage(i);
-                                
+
                                 int backupRotation = degreesRotation;
 
                                 bool processPage = false;
@@ -497,7 +660,7 @@ namespace pdpditxx
 
                                     // are you going to do full scale, shift and rotate, or just scale and shift
                                     // landscape pages
-                                    if (isLandscape) 
+                                    if (isLandscape)
                                     {
                                         // rotate portait pages to landscape
                                         if (thisPageHeight >= thisPageWidth)
@@ -666,7 +829,7 @@ namespace pdpditxx
 
                                     degreesRotation = backupRotation;
                                 }
-                                else 
+                                else
                                 {
                                     // Set new page output size
                                     PageSize outputSize = new PageSize(new Rectangle(pageX, pageY));
@@ -728,7 +891,7 @@ namespace pdpditxx
                         {
                             bool found = false;
                             int totalPages = inputDocument.GetNumberOfPages();
-                            
+
                             // NOTE : The first page in iText is 1, it does not count from 0
                             for (int i = 1; i <= totalPages; i++)
                             {
